@@ -1,21 +1,24 @@
 #include "population.hpp"
 #include <algorithm>
 
+// Конструктор: инициализация генератора, распределения и популяции
 PopulationOptimizer::PopulationOptimizer(double threshold, size_t population_size)
     : threshold_(threshold), population_size_(population_size),
       gen_(std::random_device{}()), dist_(-threshold, threshold) {
     initialize_population();
 }
 
+// Инициализация популяции случайными векторами изменений
 void PopulationOptimizer::initialize_population() {
     population_.resize(population_size_);
     for (auto& individual : population_) {
         for (auto& gene : individual) {
-            gene = dist_(gen_);
+            gene = dist_(gen_); // Генерация значений в диапазоне [-threshold, threshold]
         }
     }
 }
 
+// Оценка популяции: параллельный расчет фитнес-функции для каждого индивида
 XInd PopulationOptimizer::evaluate_population(
     const DCTBlocks& original_dct,
     const std::vector<Matrix8x8uc>& original_blocks,
@@ -25,14 +28,18 @@ XInd PopulationOptimizer::evaluate_population(
     double min_fitness = std::numeric_limits<double>::max();
     double max_fitness = -std::numeric_limits<double>::max();
 
+    // Параллельный цикл для оценки каждой особи
     #pragma omp parallel for
     for (size_t i = 0; i < population_.size(); ++i) {
         Matrix8x8d modified_dct;
+        // Применение преобразования X к DCT-коэффициентам
         apply_x_transform(original_dct.blocks[0], population_[i], modified_dct);
         
+        // Обратное DCT-преобразование для получения пикселей
         Matrix8x8uc reconstructed_block;
         rev_dct_func(reconstructed_block, modified_dct);
         
+        // Расчет фитнес-функции
         double fitness = calculate_fitness(
             original_dct.blocks[0],
             modified_dct,
@@ -40,6 +47,7 @@ XInd PopulationOptimizer::evaluate_population(
             mode
         );
 
+        // Обновление лучших/худших результатов (критическая секция для потокобезопасности)
         #pragma omp critical
         {
             results.f_values[i] = fitness;
@@ -57,17 +65,21 @@ XInd PopulationOptimizer::evaluate_population(
     return results;
 }
 
+// Расчет фитнес-функции:
+// F = (S1/S0 или S0/S1) - 0.01 * PSNR (см. формулу (24) из статьи)
 double PopulationOptimizer::calculate_fitness(
     const Matrix8x8d& original_dct,
     const Matrix8x8d& modified_dct,
     const Matrix8x8uc& original_block,
     char mode
 ) {
+    // Восстановление блока и расчет MSE/PSNR
     Matrix8x8uc reconstructed_block;
     rev_dct_func(reconstructed_block, modified_dct);
     double mse = calculate_mse_block(original_block, reconstructed_block);
     double psnr = calculate_psnr_block(mse);
 
+    // Расчет сумм абсолютных значений коэффициентов (S1 и S0)
     double s0 = 0.0, s1 = 0.0;
     for (const auto& row : modified_dct) {
         for (double val : row) {
@@ -76,15 +88,19 @@ double PopulationOptimizer::calculate_fitness(
         }
     }
 
+    // Выбор соотношения в зависимости от режима (0 или 1)
     const double ratio = (mode == 0) ? (s1 / s0) : (s0 / s1);
-    return ratio - 0.01 * psnr;
+    return ratio - 0.01 * psnr; // Комбинированная фитнес-функция
 }
 
+// Применение преобразования X к коэффициентам DCT:
+// Изменяет коэффициенты в позициях, указанных в indices (см. рис. 1b из статьи)
 void PopulationOptimizer::apply_x_transform(
     const Matrix8x8d& src,
     const std::array<double, 22>& x,
     Matrix8x8d& dst
 ) {
+    // Индексы коэффициентов в среднечастотной области (22 позиции)
     const std::array<std::pair<int, int>, 22> indices = {{
         {6,0}, {5,1}, {4,2}, {3,3}, {2,4}, {1,5}, {0,6}, {0,7},
         {1,6}, {2,5}, {3,4}, {4,3}, {5,2}, {6,1}, {7,0}, {7,1},
@@ -94,6 +110,7 @@ void PopulationOptimizer::apply_x_transform(
     dst = src;
     for (size_t i = 0; i < x.size(); ++i) {
         const auto& [row, col] = indices[i];
+        // Изменение коэффициента с сохранением знака (формула (23) из статьи)
         dst[row][col] = sign(dst[row][col]) * std::abs(dst[row][col] + x[i]);
     }
 }
