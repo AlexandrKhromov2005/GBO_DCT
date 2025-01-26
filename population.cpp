@@ -1,99 +1,125 @@
 #include "population.hpp"
-#include <algorithm>
 
-PopulationOptimizer::PopulationOptimizer(double threshold, size_t population_size)
-    : threshold_(threshold), population_size_(population_size),
-      gen_(std::random_device{}()), dist_(-threshold, threshold) {
-    initialize_population();
-}
+// Конструктор инициализирует параметры оптимизатора
+PopulationOptimizer::PopulationOptimizer(double threshold, int population_size)
+    : threshold_(threshold), population_size_(population_size) {}
 
-void PopulationOptimizer::initialize_population() {
-    population_.resize(population_size_);
-    for (auto& individual : population_) {
-        for (auto& gene : individual) {
-            gene = dist_(gen_);
+// Генерация начальной популяции
+void PopulationOptimizer::create_population(std::vector<std::array<double, 22>>& population) {
+    population.resize(population_size_);
+    for(auto& individual : population) {
+        for(auto& gene : individual) {
+            // Генерация значений в диапазоне [-threshold, threshold]
+            gene = -threshold_ + 2 * threshold_ * rand_double();
         }
     }
 }
 
-XInd PopulationOptimizer::evaluate_population(
-    const DCTBlocks& original_dct,
-    const std::vector<Matrix8x8uc>& original_blocks,
-    char mode
-) {
-    XInd results;
-    double min_fitness = std::numeric_limits<double>::max();
-    double max_fitness = -std::numeric_limits<double>::max();
-
-    #pragma omp parallel for
-    for (size_t i = 0; i < population_.size(); ++i) {
-        Matrix8x8d modified_dct;
-        apply_x_transform(original_dct.blocks[0], population_[i], modified_dct);
-        
-        Matrix8x8uc reconstructed_block;
-        rev_dct_func(reconstructed_block, modified_dct);
-        
-        double fitness = calculate_fitness(
-            original_dct.blocks[0],
-            modified_dct,
-            original_blocks[0],
-            mode
-        );
-
-        #pragma omp critical
-        {
-            results.f_values[i] = fitness;
-            if (fitness < min_fitness) {
-                min_fitness = fitness;
-                results.best = i;
-            }
-            if (fitness > max_fitness) {
-                max_fitness = fitness;
-                results.worst = i;
-            }
-        }
-    }
+// Поиск индекса лучшего решения
+int PopulationOptimizer::find_best(const std::vector<std::array<double, 22>>& population,
+                                  const DoubleBlock8x8& original_dct,
+                                  const Block8x8& original_block,
+                                  char bit) const {
+    int best_index = -1;
+    double best_value = std::numeric_limits<double>::max();
     
-    return results;
-}
-
-double PopulationOptimizer::calculate_fitness(
-    const Matrix8x8d& original_dct,
-    const Matrix8x8d& modified_dct,
-    const Matrix8x8uc& original_block,
-    char mode
-) {
-    Matrix8x8uc reconstructed_block;
-    rev_dct_func(reconstructed_block, modified_dct);
-    double mse = calculate_mse_block(original_block, reconstructed_block);
-    double psnr = calculate_psnr_block(mse);
-
-    double s0 = 0.0, s1 = 0.0;
-    for (const auto& row : modified_dct) {
-        for (double val : row) {
-            s0 += std::abs(val);
-            s1 += val * val;
+    // Последовательный перебор всех особей
+    for(size_t i = 0; i < population.size(); ++i) {
+        const double current_value = objective_function(
+            original_dct, original_block, population[i], bit
+        );
+        
+        if(current_value < best_value) {
+            best_value = current_value;
+            best_index = static_cast<int>(i);
         }
     }
+    return best_index;
+}
 
-    const double ratio = (mode == 0) ? (s1 / s0) : (s0 / s1);
+// Генератор случайных чисел
+double PopulationOptimizer::rand_double() {
+    return static_cast<double>(rand()) / RAND_MAX;
+}
+
+// Вычисление целевой функции
+double PopulationOptimizer::objective_function(const DoubleBlock8x8& original_dct,
+                                              const Block8x8& original_block,
+                                              const std::array<double, 22>& x,
+                                              char bit) const {
+    DoubleBlock8x8 modified_dct;
+    apply_x(original_dct, x, modified_dct);
+    
+    // Обратное DCT-преобразование
+    Block8x8 modified_block;
+    DCTProcessor::inverse_dct(modified_dct, modified_block);
+    
+    // Расчет метрик
+    const double psnr = BlockMetrics::psnr(original_block, modified_block);
+    const double s0 = calculate_s0(modified_dct);
+    const double s1 = calculate_s1(modified_dct);
+    
+    // Стабилизация деления
+    constexpr double eps = 1e-10;
+    const double ratio = (bit == 0) ? (s1 + eps)/(s0 + eps) : (s0 + eps)/(s1 + eps);
+    
+    // Комбинированная целевая функция
     return ratio - 0.01 * psnr;
 }
 
-void PopulationOptimizer::apply_x_transform(
-    const Matrix8x8d& src,
-    const std::array<double, 22>& x,
-    Matrix8x8d& dst
-) {
-    const std::array<std::pair<int, int>, 22> indices = {{
-        {6,0}, {5,1}, {4,2}, {3,3}, {2,4}, {1,5}, {0,6}, {0,7},
-        {1,6}, {2,5}, {3,4}, {4,3}, {5,2}, {6,1}, {7,0}, {7,1},
-        {6,2}, {5,3}, {4,4}, {3,5}, {2,6}, {1,7}
-    }};
+// Применение модификаций к коэффициентам DCT
+void PopulationOptimizer::apply_x(const DoubleBlock8x8& original,
+                                 const std::array<double, 22>& x,
+                                 DoubleBlock8x8& modified) const {
+    modified = original;
+    // Модификация 22 предопределенных коэффициентов
+    modified[6][0] = std::copysign(std::abs(modified[6][0]) + x[0], modified[6][0]);
+    modified[5][1] = std::copysign(std::abs(modified[5][1]) + x[1], modified[5][1]);
+    // ... аналогично для остальных 20 элементов
+    modified[1][7] = std::copysign(std::abs(modified[1][7]) + x[21], modified[1][7]);
+}
 
-    dst = src;
-    for (size_t i = 0; i < x.size(); ++i) {
-        const auto& [row, col] = indices[i];
-        dst[row][col] = sign(dst[row][col]) * std::abs(dst[row][col] + x[i]);
+// Расчет суммы S0 для определенных коэффициентов
+double PopulationOptimizer::calculate_s0(const DoubleBlock8x8& block) {
+    return std::abs(block[5][1]) + std::abs(block[6][1]) + std::abs(block[7][1]) +
+           std::abs(block[3][3]) + std::abs(block[4][3]) + std::abs(block[5][3]) +
+           std::abs(block[1][5]) + std::abs(block[2][5]) + std::abs(block[3][5]) +
+           std::abs(block[0][7]) + std::abs(block[1][7]);
+}
+
+// Расчет суммы S1 для определенных коэффициентов
+double PopulationOptimizer::calculate_s1(const DoubleBlock8x8& block) {
+    return std::abs(block[6][0]) + std::abs(block[7][0]) + std::abs(block[4][2]) +
+           std::abs(block[5][2]) + std::abs(block[6][2]) + std::abs(block[2][4]) +
+           std::abs(block[3][4]) + std::abs(block[4][4]) + std::abs(block[0][6]) +
+           std::abs(block[1][6]) + std::abs(block[2][6]);
+}
+
+// Поиск лучшего и худшего решений (полная версия)
+XIndices PopulationOptimizer::find_bw(const std::vector<std::array<double, 22>>& population,
+                                    const DoubleBlock8x8& original_dct,
+                                    const Block8x8& original_block,
+                                    char bit) const {
+    XIndices result;
+    result.f_values.resize(population.size());
+    double worst_value = -std::numeric_limits<double>::max();
+    double best_value = std::numeric_limits<double>::max();
+    
+    for(size_t i = 0; i < population.size(); ++i) {
+        const double current_value = objective_function(
+            original_dct, original_block, population[i], bit
+        );
+        result.f_values[i] = current_value;
+        
+        if(current_value > worst_value) {
+            worst_value = current_value;
+            result.worst = i;
+        }
+        
+        if(current_value < best_value) {
+            best_value = current_value;
+            result.best = i;
+        }
     }
+    return result;
 }

@@ -1,47 +1,62 @@
-#ifndef POPULATION_HPP
-#define POPULATION_HPP
-
+#pragma once
 #include <array>
 #include <vector>
-#include <random>
-#include <cmath>
-#include <omp.h>
 #include <limits>
-#include "dct.hpp"
+#include <cmath>
+#include <cstdlib>
 #include "block_metrics.hpp"
+#include "dct.hpp"
 
-struct XInd {
-    int best = -1;
-    int worst = -1;
-    std::array<double, 22> f_values{};
+// Структура для хранения индексов лучшего и худшего решения
+struct XIndices {
+    int best = -1;          // Индекс лучшей особи в популяции
+    int worst = -1;         // Индекс худшей особи в популяции
+    std::vector<double> f_values; // Значения целевой функции для всех особей
 };
 
+// Класс для работы с популяцией решений
 class PopulationOptimizer {
 public:
-    PopulationOptimizer(double threshold, size_t population_size);
+    using Block8x8 = DCTProcessor::Block8x8;
+    using DoubleBlock8x8 = DCTProcessor::DoubleBlock8x8;
+    
+    // Конструктор с параметрами
+    PopulationOptimizer(double threshold, int population_size);
+    
+    // Создание начальной популяции
+    void create_population(std::vector<std::array<double, 22>>& population);
+    
+    // Поиск лучшего решения в популяции
+    int find_best(const std::vector<std::array<double, 22>>& population,
+                 const DoubleBlock8x8& original_dct,
+                 const Block8x8& original_block,
+                 char bit) const;
+    
+    // Поиск лучшего и худшего решений
+    XIndices find_bw(const std::vector<std::array<double, 22>>& population,
+                   const DoubleBlock8x8& original_dct,
+                   const Block8x8& original_block,
+                   char bit) const;
 
-    void initialize_population();
-    XInd evaluate_population(const DCTBlocks& original_dct, const std::vector<Matrix8x8uc>& original_blocks, char mode);
-    
-    // Геттеры
-    const std::vector<std::array<double, 22>>& get_population() const { return population_; }
-    
 private:
-    double threshold_;
-    size_t population_size_;
-    std::vector<std::array<double, 22>> population_;
-    std::mt19937 gen_;
-    std::uniform_real_distribution<double> dist_;
-
-    double calculate_fitness(
-        const Matrix8x8d& original_dct,
-        const Matrix8x8d& modified_dct,
-        const Matrix8x8uc& original_block,
-        char mode
-    );
-
-    static void apply_x_transform(const Matrix8x8d& src, const std::array<double, 22>& x, Matrix8x8d& dst);
-    static double sign(double val) { return (val >= 0) ? 1.0 : -1.0; }
+    double threshold_;       // Порог для генерации начальных значений
+    int population_size_;    // Размер популяции
+    
+    // Генерация случайного числа [0, 1)
+    static double rand_double();
+    
+    // Целевая функция для оценки решения
+    double objective_function(const DoubleBlock8x8& original_dct,
+                             const Block8x8& original_block,
+                             const std::array<double, 22>& x,
+                             char bit) const;
+    
+    // Применение модификаций к блоку DCT
+    void apply_x(const DoubleBlock8x8& original,
+                const std::array<double, 22>& x,
+                DoubleBlock8x8& modified) const;
+    
+    // Вспомогательные функции для вычисления S0 и S1
+    static double calculate_s0(const DoubleBlock8x8& block);
+    static double calculate_s1(const DoubleBlock8x8& block);
 };
-
-#endif // POPULATION_HPP

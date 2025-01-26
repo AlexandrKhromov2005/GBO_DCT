@@ -1,23 +1,39 @@
-#ifndef DCT_HPP
-#define DCT_HPP
-
+#pragma once
 #include <array>
-#include <algorithm>
-#include <vector>
+#include <algorithm> 
 
-constexpr int DCT_SIZE = 8;
+class DCTProcessor {
+public:
+    using Block8x8 = std::array<std::array<unsigned char, 8>, 8>;
+    using DoubleBlock8x8 = std::array<std::array<double, 8>, 8>;
+    
+    static void dct_transform(const Block8x8& input, DoubleBlock8x8& output);
+    static void inverse_dct(const DoubleBlock8x8& input, Block8x8& output);
 
-using Matrix8x8uc = std::array<std::array<unsigned char, DCT_SIZE>, DCT_SIZE>;
-using Matrix8x8d = std::array<std::array<double, DCT_SIZE>, DCT_SIZE>;
+private:
+    static constexpr DoubleBlock8x8 c = {{ 
+        {{0.353553, 0.353553, 0.353553, 0.353553, 0.353553, 0.353553, 0.353553, 0.353553}},
+        {{0.490393, 0.415735, 0.277785, 0.0975452, -0.0975452, -0.277785, -0.415735, -0.490393}},
+        {{0.46194, 0.191342, -0.191342, -0.46194, -0.46194, -0.191342, 0.191342, 0.46194}},
+        {{0.415735, -0.0975452, -0.490393, -0.277785, 0.277785, 0.490393, 0.0975452, -0.415735}},
+        {{0.353553, -0.353553, -0.353553, 0.353553, 0.353553, -0.353553, -0.353553, 0.353553}},
+        {{0.277785, -0.490393, 0.0975452, 0.415735, -0.415735, -0.0975452, 0.490393, -0.277785}},
+        {{0.191342, -0.46194, 0.46194, -0.191342, -0.191342, 0.46194, -0.46194, 0.191342}},
+        {{0.0975452, -0.277785, 0.415735, -0.490393, 0.490393, -0.415735, 0.277785, -0.0975452}}
+    }};
 
-struct DCTBlocks {
-    std::vector<Matrix8x8d> blocks;
-    int block_count_x;
-    int block_count_y;
+    static constexpr DoubleBlock8x8 c_t = {{
+        {{0.353553, 0.490393, 0.46194, 0.415735, 0.353553, 0.277785, 0.191342, 0.0975452}},
+        {{0.353553, 0.415735, 0.191342, -0.0975452, -0.353553, -0.490393, -0.46194, -0.277785}},
+        {{0.353553, 0.277785, -0.191342, -0.490393, -0.353553, 0.0975452, 0.46194, 0.415735}},
+        {{0.353553, 0.0975452, -0.46194, -0.277785, 0.353553, 0.415735, -0.191342, -0.490393}},
+        {{0.353553, -0.0975452, -0.46194, 0.277785, 0.353553, -0.415735, -0.191342, 0.490393}},
+        {{0.353553, -0.277785, -0.191342, 0.490393, -0.353553, -0.0975452, 0.46194, -0.415735}},
+        {{0.353553, -0.415735, 0.191342, 0.0975452, -0.353553, 0.490393, -0.46194, 0.277785}},
+        {{0.353553, -0.490393, 0.46194, -0.415735, 0.353553, -0.277785, 0.191342, -0.0975452}}
+    }};
+
+    static void multiply_matrices(const DoubleBlock8x8& a, const DoubleBlock8x8& b, DoubleBlock8x8& result);
+    static void convert_to_double(const Block8x8& src, DoubleBlock8x8& dst);
+    static void convert_to_uchar(const DoubleBlock8x8& src, Block8x8& dst);
 };
-
-void dct_func(const Matrix8x8uc& block, Matrix8x8d& dct_block);
-void rev_dct_func(Matrix8x8uc& block, const Matrix8x8d& dct_block);
-void apply_dct_to_blocks(const std::vector<Matrix8x8uc>& input_blocks, DCTBlocks& dct_blocks);
-void apply_rev_dct_to_blocks(const DCTBlocks& dct_blocks, std::vector<Matrix8x8uc>& output_blocks);
-#endif // DCT_HPP

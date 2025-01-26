@@ -1,10 +1,10 @@
-#ifndef BLOCK_METRICS_HPP
-#define BLOCK_METRICS_HPP
+#pragma once
+#include <array>
 
-#include <cmath>
-#include "dct.hpp"
-
-double calculate_mse_block(const Matrix8x8uc& original, const Matrix8x8uc& reconstructed);
-double calculate_psnr_block(double mse);
-
-#endif BLOCK_METRICS_HPP
+class BlockMetrics {
+public:
+    using Block8x8 = std::array<std::array<unsigned char, 8>, 8>;
+    
+    static double mse(const Block8x8& original, const Block8x8& changed);
+    static double psnr(const Block8x8& original, const Block8x8& changed);
+};

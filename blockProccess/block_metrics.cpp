@@ -1,23 +1,18 @@
 #include "block_metrics.hpp"
+#include <cmath>
 
-double calculate_mse_block(const Matrix8x8uc& original, const Matrix8x8uc& reconstructed) {
-    double sum_squared_error = 0.0;
-    
-    for (int y = 0; y < DCT_SIZE; ++y) {
-        for (int x = 0; x < DCT_SIZE; ++x) {
-            double diff = static_cast<double>(original[y][x]) - 
-                          static_cast<double>(reconstructed[y][x]);
-            sum_squared_error += diff * diff;
+double BlockMetrics::mse(const Block8x8& original, const Block8x8& changed) {
+    double sum = 0.0;
+    for(size_t i = 0; i < 8; ++i) {
+        for(size_t j = 0; j < 8; ++j) {
+            double diff = original[i][j] - changed[i][j];
+            sum += diff * diff;
         }
     }
-    
-    return sum_squared_error / (DCT_SIZE * DCT_SIZE); 
+    return sum / 64.0;
 }
 
-double calculate_psnr_block(double mse) {
-    if (mse <= 0.0) {
-        return INFINITY; 
-    }
-    const double max_pixel_value = 255.0;
-    return 10.0 * std::log10((max_pixel_value * max_pixel_value) / mse);
+double BlockMetrics::psnr(const Block8x8& original, const Block8x8& changed) {
+    const double mse_val = mse(original, changed);
+    return mse_val <= 1e-10 ? 100.0 : 10.0 * log10(65025.0 / mse_val);
 }
