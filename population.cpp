@@ -120,24 +120,27 @@ double PopulationOptimizer::calculate_fitness(
     const Matrix8x8uc& original_block,
     char mode
 ) {
-    // Восстановление блока и расчет MSE/PSNR
     Matrix8x8uc reconstructed_block;
     rev_dct_func(reconstructed_block, modified_dct);
     double mse = calculate_mse_block(original_block, reconstructed_block);
     double psnr = calculate_psnr_block(mse);
 
-    // Расчет сумм абсолютных значений коэффициентов (S1 и S0)
+    // Индексы среднечастотных коэффициентов (совпадают с apply_x_transform)
+    const std::array<std::pair<int, int>, 22> indices = {{
+        {6,0}, {5,1}, {4,2}, {3,3}, {2,4}, {1,5}, {0,6}, {0,7},
+        {1,6}, {2,5}, {3,4}, {4,3}, {5,2}, {6,1}, {7,0}, {7,1},
+        {6,2}, {5,3}, {4,4}, {3,5}, {2,6}, {1,7}
+    }};
+
     double s0 = 0.0, s1 = 0.0;
-    for (const auto& row : modified_dct) {
-        for (double val : row) {
-            s0 += std::abs(val);
-            s1 += val * val;
-        }
+    for (const auto& [row, col] : indices) {
+        double val = modified_dct[row][col];
+        s0 += std::abs(val);  // Сумма модулей среднечастотных коэффициентов
+        s1 += val * val;      // Сумма квадратов среднечастотных коэффициентов
     }
 
-    // Выбор соотношения в зависимости от режима (0 или 1)
     const double ratio = (mode == 0) ? (s1 / s0) : (s0 / s1);
-    return ratio - 0.01 * psnr; // Комбинированная фитнес-функция
+    return ratio - 0.01 * psnr;
 }
 
 // Применение преобразования X к коэффициентам DCT:
