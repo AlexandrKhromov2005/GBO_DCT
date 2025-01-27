@@ -1,5 +1,7 @@
 #pragma once
-#include "dct.hpp"
+#include "../blockProccess/dct.hpp"
+
+#include <string>
 
 struct ImageBlocks {
     std::vector<Matrix8x8uc> blocks;
@@ -16,5 +18,7 @@ unsigned char* crop_and_grayscale(
     int* new_height
 );
 
-ImageBlocks split_into_blocks(const unsigned char* image, int width, int height);
-unsigned char* assemble_image(const ImageBlocks& blocks, int* out_width, int* out_height);
+ImageBlocks split_into_blocks(const std::vector<unsigned char>  image, int width, int height);
+std::vector<unsigned char> assemble_image(const ImageBlocks& blocks, int* out_width, int* out_height);
+std::vector<unsigned char> import_image(const std::string& filepath, int width, int height, int channels);
+void export_image(const std::string& filepath, std::vector<unsigned char> image_vec, int width, int height, int channels);

@@ -20,8 +20,8 @@ void PopulationOptimizer::initialize_population() {
 
 // Оценка популяции: параллельный расчет фитнес-функции для каждого индивида
 XInd PopulationOptimizer::evaluate_population(
-    const DCTBlocks& original_dct,
-    const std::vector<Matrix8x8uc>& original_blocks,
+    const Matrix8x8d& original_dct,
+    const Matrix8x8uc& original_block,
     char mode
 ) {
     XInd results;
@@ -33,7 +33,7 @@ XInd PopulationOptimizer::evaluate_population(
     for (size_t i = 0; i < population_.size(); ++i) {
         Matrix8x8d modified_dct;
         // Применение преобразования X к DCT-коэффициентам
-        apply_x_transform(original_dct.blocks[0], population_[i], modified_dct);
+        apply_x_transform(original_dct, population_[i], modified_dct);
         
         // Обратное DCT-преобразование для получения пикселей
         Matrix8x8uc reconstructed_block;
@@ -41,9 +41,9 @@ XInd PopulationOptimizer::evaluate_population(
         
         // Расчет фитнес-функции
         double fitness = calculate_fitness(
-            original_dct.blocks[0],
+            original_dct,
             modified_dct,
-            original_blocks[0],
+            original_block,
             mode
         );
 
@@ -64,6 +64,53 @@ XInd PopulationOptimizer::evaluate_population(
     
     return results;
 }
+
+// // Оценка популяции: параллельный расчет фитнес-функции для каждого индивида
+// XInd PopulationOptimizer::evaluate_population(
+//     const DCTBlocks& original_dct,
+//     const std::vector<Matrix8x8uc>& original_blocks,
+//     char mode
+// ) {
+//     XInd results;
+//     double min_fitness = std::numeric_limits<double>::max();
+//     double max_fitness = -std::numeric_limits<double>::max();
+
+//     // Параллельный цикл для оценки каждой особи
+//     #pragma omp parallel for
+//     for (size_t i = 0; i < population_.size(); ++i) {
+//         Matrix8x8d modified_dct;
+//         // Применение преобразования X к DCT-коэффициентам
+//         apply_x_transform(original_dct.blocks[0], population_[i], modified_dct);
+        
+//         // Обратное DCT-преобразование для получения пикселей
+//         Matrix8x8uc reconstructed_block;
+//         rev_dct_func(reconstructed_block, modified_dct);
+        
+//         // Расчет фитнес-функции
+//         double fitness = calculate_fitness(
+//             original_dct.blocks[0],
+//             modified_dct,
+//             original_blocks[0],
+//             mode
+//         );
+
+//         // Обновление лучших/худших результатов (критическая секция для потокобезопасности)
+//         #pragma omp critical
+//         {
+//             results.f_values[i] = fitness;
+//             if (fitness < min_fitness) {
+//                 min_fitness = fitness;
+//                 results.best = i;
+//             }
+//             if (fitness > max_fitness) {
+//                 max_fitness = fitness;
+//                 results.worst = i;
+//             }
+//         }
+//     }
+    
+//     return results;
+// }
 
 // Расчет фитнес-функции:
 // F = (S1/S0 или S0/S1) - 0.01 * PSNR (см. формулу (24) из статьи)

@@ -1,5 +1,10 @@
+#define STB_IMAGE_IMPLEMENTATION
+#define STB_IMAGE_WRITE_IMPLEMENTATION
 #include "process_image.hpp"
+#include "stb_image.h"
+#include "stb_image_write.h"
 #include <cmath>
+#include <string>
 
 unsigned char* crop_and_grayscale(
     const unsigned char* input,
@@ -29,7 +34,7 @@ unsigned char* crop_and_grayscale(
     return output;
 }
 
-ImageBlocks split_into_blocks(const unsigned char* image, int width, int height) {
+ImageBlocks split_into_blocks(const std::vector<unsigned char> image, int width, int height) {
     ImageBlocks result;
     result.block_count_x = width / 8;
     result.block_count_y = height / 8;
@@ -53,11 +58,11 @@ ImageBlocks split_into_blocks(const unsigned char* image, int width, int height)
     return result;
 }
 
-unsigned char* assemble_image(const ImageBlocks& blocks, int* out_width, int* out_height) {
+std::vector<unsigned char> assemble_image(const ImageBlocks& blocks, int* out_width, int* out_height) {
     *out_width = blocks.block_count_x * 8;
     *out_height = blocks.block_count_y * 8;
 
-    unsigned char* image = new unsigned char[*out_width * *out_height];
+    std::vector<unsigned char> image;
 
     for (size_t i = 0; i < blocks.blocks.size(); ++i) {
         int bx = i % blocks.block_count_x;
@@ -68,10 +73,28 @@ unsigned char* assemble_image(const ImageBlocks& blocks, int* out_width, int* ou
             for (int x = 0; x < 8; ++x) {
                 int dst_x = bx * 8 + x;
                 int dst_y = by * 8 + y;
-                image[dst_y * *out_width + dst_x] = block[y][x];
+                image.push_back(block[y][x]);
             }
         }
     }
 
     return image;
+}
+
+std::vector<unsigned char> import_image(const std::string& filepath, int width, int height, int channels) {
+    unsigned char* data = stbi_load(filepath.c_str(), &width, &height, &channels, 0);
+
+    // Копируем данные в вектор
+    std::vector<unsigned char> image_vec(data, data + width * height * channels);
+
+    // Освобождаем память, выделенную stb_image
+    stbi_image_free(data);
+
+    image_vec = image_vec;
+
+    return image_vec;
+}
+
+void export_image(const std::string& filepath, std::vector<unsigned char> image_vec, int width, int height, int channels) {
+    stbi_write_png(filepath.c_str(), width, height, channels, image_vec.data(), width * channels);
 }
