@@ -35,16 +35,16 @@ int main(){
 
         XInd f_result = population.evaluate_population(dct_block, image.blocks[i], wm[i % wm.size()]);
 
-        // GBO optimizer(30, 40, 10, 0.5, dct_block, image.blocks[i], wm[i % wm.size()], f_result.best, f_result. worst, f_result.f_values, population.get_population());
-        // optimizer.gbo();
+        // // GBO optimizer(30, 40, 10, 0.5, dct_block, image.blocks[i], wm[i % wm.size()], f_result.best, f_result. worst, f_result.f_values, population.get_population());
+        // // optimizer.gbo();
 
-        VEC_POP x = population.get_population()[0];
+        //VEC_POP x = population.get_population()[0];
 
-        Matrix8x8d modified_dct;
-        // Применение преобразования X к DCT-коэффициентам
-        population.apply_x_transform(dct_block, x, modified_dct);
+        // Matrix8x8d modified_dct;
+        // // Применение преобразования X к DCT-коэффициентам
+        // population.apply_x_transform(dct_block, x, modified_dct);
 
-        rev_dct_func(image.blocks[i], modified_dct);
+        rev_dct_func(image.blocks[i], dct_block);
         
     }
 

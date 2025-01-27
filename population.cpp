@@ -1,5 +1,6 @@
 #include "population.hpp"
 #include <algorithm>
+#include <iostream>
 
 // Конструктор
 PopulationOptimizer::PopulationOptimizer(double threshold, size_t population_size)
@@ -86,24 +87,26 @@ double PopulationOptimizer::calculate_fitness(
     
     for (const auto& [row, col] : s1_indices) {
         double val = modified_dct[row][col];
-        s1 += std::abs(val);  // Сумма квадратов для 1-region
+        s1 += std::fabs(val);  // Сумма квадратов для 1-region
     }
     
     
     for (const auto& [row, col] : s0_indices) {
         double val = modified_dct[row][col];
-        s0 += std::abs(val);  // Сумма модулей для 0-region
+        s0 += std::fabs(val);  // Сумма модулей для 0-region
     }
 
     double ratio;
     if (mode == 0) {
-        if (s0 == 0){ s0 = 0.0001;}
+        if (s0 == 0.0){ s0 = 0.0001;}
         ratio = s1/s0;
     } else {
-        if (s1 == 0){ s1 = 0.0001;}
+        if (s1 == 0.0){ s1 = 0.0001;}
         ratio = s0/s1;
     }
     return ratio - 0.01 * psnr;
+    //std::cout << "ret = " << ratio - 0.01 * psnr << "\n";
+    //return 0;
 }
 
 // Применение X-преобразования
@@ -122,6 +125,6 @@ void PopulationOptimizer::apply_x_transform(
     dst = src;
     for (size_t i = 0; i < x.size(); ++i) {
         const auto& [row, col] = indices[i];
-        dst[row][col] = sign(dst[row][col]) * std::abs(dst[row][col] + x[i]);
+        dst[row][col] = sign(dst[row][col]) * std::fabs(dst[row][col] + x[i]);
     }
 }
