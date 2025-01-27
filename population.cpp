@@ -95,12 +95,13 @@ double PopulationOptimizer::calculate_fitness(
         s0 += std::abs(val);  // Сумма модулей для 0-region
     }
 
+    double ratio;
     if (mode == 0) {
-        if (s0 == 0){ s0 = 1-e9;}
-            const double ratio = s1/s0;
+        if (s0 == 0){ s0 = 0.0001;}
+        ratio = s1/s0;
     } else {
-        if (s1 == 0){ s1 = 1-e9;}
-            const double ratio = s0/s1;
+        if (s1 == 0){ s1 = 0.0001;}
+        ratio = s0/s1;
     }
     return ratio - 0.01 * psnr;
 }

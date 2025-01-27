@@ -39,20 +39,14 @@ ImageBlocks split_into_blocks(const std::vector<unsigned char> image, int width,
     result.block_count_x = width / 8;
     result.block_count_y = height / 8;
 
-    for (int by = 0; by < result.block_count_y; ++by) {
-        for (int bx = 0; bx < result.block_count_x; ++bx) {
-            Matrix8x8uc block;
-
-            for (int y = 0; y < 8; ++y) {
-                for (int x = 0; x < 8; ++x) {
-                    int src_x = bx * 8 + x;
-                    int src_y = by * 8 + y;
-                    block[y][x] = image[src_y * width + src_x];
-                }
+    for (int i = 0; i < size(image) / 64; i++) {
+        Matrix8x8uc block;
+        for (int j = 0; j < 8; j++) {
+            for (int k = 0; k < 8; k++) {
+                block[j][k] = image[(i * 64) + (j * 8) + k];
             }
-
-            result.blocks.push_back(block);
         }
+        result.blocks.push_back(block);    
     }
 
     return result;

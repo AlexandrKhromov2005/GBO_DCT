@@ -11,8 +11,9 @@
 
 // Конструктор
 GBO::GBO(int inp_n, int inp_m, int inp_th, double inp_pr, Matrix8x8d inp_original_dct,
-    Matrix8x8uc inp_original_blocks, unsigned char inp_mode)
-    : mode(inp_mode), original_dct(inp_original_dct), original_block(inp_original_blocks), n(inp_n), m(inp_m), th(inp_th), pr(inp_pr),
+    Matrix8x8uc inp_original_blocks, unsigned char inp_mode, int inp_best_ind, int inp_worst_ind, std::array<double, 22> inp_f_values, std::vector<VEC_POP> inp_population)
+    : population(inp_population), best_ind(inp_best_ind), worst_ind(inp_worst_ind), f_values(inp_f_values), mode(inp_mode), original_dct(inp_original_dct), 
+    original_block(inp_original_blocks), n(inp_n), m(inp_m), th(inp_th), pr(inp_pr),
       gen(rd()), dis_0_1(0.0, 1.0), dis_norm(0.0, 1.0),
       dis_1_n(1, n), dis_m1_1(-1.0, 1.0) {}
 

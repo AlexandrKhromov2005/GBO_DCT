@@ -37,7 +37,7 @@ public:
 
     // Конструктор и деструктор
     GBO(int inp_n, int inp_m, int inp_th, double inp_pr, Matrix8x8d inp_original_dct,
-    Matrix8x8uc inp_original_blocks, unsigned char inp_mode);
+    Matrix8x8uc inp_original_blocks, unsigned char inp_mode, int inp_best_ind, int inp_worst_ind, std::array<double, 22> inp_f_values, std::vector<VEC_POP> inp_population);
     ~GBO();
 
     // Методы

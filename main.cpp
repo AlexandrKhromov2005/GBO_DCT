@@ -17,8 +17,13 @@ int main(){
     std::srand(std::time(0)); 
 
     std::vector<unsigned char> img_pixels = import_image("images/lenna.png", 512, 512, 1);
-
     ImageBlocks image = split_into_blocks(img_pixels, 512, 512);
+
+    std::vector<unsigned char> wm =  import_image("images/wm.png", 32, 32, 1);
+    for(int i = 0; i < wm.size(); i++){
+        if(wm[i] > 127){ wm[i] = 1;}
+        else{ wm[i] = 0;}
+    }
 
     for(int i = 0; i < image.blocks.size(); i++){
         std::cout << i << "\n"; 
@@ -28,25 +33,26 @@ int main(){
         Matrix8x8d dct_block;
         dct_func(image.blocks[i], dct_block); 
 
-        XInd f_result = population.evaluate_population(dct_block, image.blocks[i], 0);
+        XInd f_result = population.evaluate_population(dct_block, image.blocks[i], wm[i % wm.size()]);
 
-        GBO optimizer(30, 40, 10, 0.5, dct_block, image.blocks[i], 0);
+        // GBO optimizer(30, 40, 10, 0.5, dct_block, image.blocks[i], wm[i % wm.size()], f_result.best, f_result. worst, f_result.f_values, population.get_population());
+        // optimizer.gbo();
 
-        optimizer.population = population.get_population();
+        VEC_POP x = population.get_population()[0];
 
-        optimizer.best_ind = f_result.best;
-        optimizer.worst_ind = f_result.worst;
-        optimizer.f_values = f_result.f_values;
+        Matrix8x8d modified_dct;
+        // Применение преобразования X к DCT-коэффициентам
+        population.apply_x_transform(dct_block, x, modified_dct);
 
-
-
-        optimizer.gbo();
+        rev_dct_func(image.blocks[i], modified_dct);
+        
     }
 
-    PopulationOptimizer population(10, 30);
-    XInd pop_result;
+    int out_width;
+    int out_height;
 
-    //pop_result = population.evaluate_population();
+    img_pixels = assemble_image(image, &out_width, &out_height);
+    export_image("images/new_lenna.png",img_pixels, 512, 512, 1);
 
 
     // Засекаем время окончания выполнения
